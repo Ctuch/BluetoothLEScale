@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE_BLUETOOTH = 2;
     private static final int REQUEST_ENABLE_BT = 3;
     private static final String TAG = "Main_Activity";
-    private static final long SCAN_PERIOD = 10000; // 10 seconds
+    private static final long SCAN_PERIOD = 30000; // 30 seconds
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bluetoothLeScanner;
