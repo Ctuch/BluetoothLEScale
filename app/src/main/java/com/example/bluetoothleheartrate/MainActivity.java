@@ -4,6 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -26,14 +29,18 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.BaseAdapter;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.google.android.material.transition.platform.MaterialContainerTransformSharedElementCallback;
 
 import java.util.ArrayList;
 
 //TODO: fix depreciated parts of UI with fragments and new design
-public class MainActivity extends ListActivity {
+public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_REQUEST_CODE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_CODE_BLUETOOTH = 2;
@@ -43,7 +50,7 @@ public class MainActivity extends ListActivity {
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bluetoothLeScanner;
-    private LeDeviceListAdapter leDeviceListAdapter;
+    private DeviceListAdapter leDeviceListAdapter;
     private Handler handler;
     private boolean scanning;
 
@@ -51,6 +58,16 @@ public class MainActivity extends ListActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        RecyclerView recyclerView = findViewById(R.id.ble_device_list);
+        leDeviceListAdapter = new DeviceListAdapter();
+        recyclerView.setAdapter(leDeviceListAdapter);
+
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
+        recyclerView.setLayoutManager(layoutManager);
+
 
         final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
@@ -60,36 +77,6 @@ public class MainActivity extends ListActivity {
         checkPermissionLocation();
         checkPermissionBluetooth();
         //TODO: handle permissions accepted
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main, menu);
-        if (!scanning) {
-            menu.findItem(R.id.menu_stop).setVisible(false);
-            menu.findItem(R.id.menu_scan).setVisible(true);
-            menu.findItem(R.id.menu_refresh).setActionView(null);
-        } else {
-            menu.findItem(R.id.menu_stop).setVisible(true);
-            menu.findItem(R.id.menu_scan).setVisible(false);
-            menu.findItem(R.id.menu_refresh).setActionView(
-                    R.layout.actionbar_indeterminate_progress);
-        }
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_scan:
-                leDeviceListAdapter.clear();
-                scanLeDevice();
-                break;
-            case R.id.menu_stop:
-                scanLeDevice();
-                break;
-        }
-        return true;
     }
 
     @SuppressLint("MissingPermission")
@@ -104,9 +91,7 @@ public class MainActivity extends ListActivity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        // Initializes list view adapter.
-        leDeviceListAdapter = new LeDeviceListAdapter();
-        setListAdapter(leDeviceListAdapter);
+        //TODO: is this right?
         scanLeDevice();
     }
 
@@ -125,22 +110,6 @@ public class MainActivity extends ListActivity {
         super.onPause();
         scanLeDevice();
         leDeviceListAdapter.clear();
-    }
-
-
-    @SuppressLint("MissingPermission")
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        final BluetoothDevice device = leDeviceListAdapter.getDevice(position);
-        if (device == null) return;
-        final Intent intent = new Intent(this, DeviceControlActivity.class);
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
-        if (scanning) {
-            bluetoothLeScanner.stopScan(leScanCallback);
-            scanning = false;
-        }
-        startActivity(intent);
     }
 
     private void checkPermissionLocation() {
@@ -216,20 +185,34 @@ public class MainActivity extends ListActivity {
                 }
             };
 
+    private class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.DeviceViewHolder> {
 
-    // Adapter for holding devices found through scanning.
-    private class LeDeviceListAdapter extends BaseAdapter {
+        // Adapter for holding devices found through scanning.
         private ArrayList<BluetoothDevice> mLeDevices;
         private LayoutInflater mInflator;
 
-        public LeDeviceListAdapter() {
+        public DeviceListAdapter() {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
             mInflator = MainActivity.this.getLayoutInflater();
         }
 
+        @NonNull
+        @Override
+        public DeviceListAdapter.DeviceViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = mInflator.inflate(R.layout.listitem_device, parent, false);
+            DeviceViewHolder holder = new DeviceViewHolder(view);
+
+            holder.deviceAddress = view.findViewById(R.id.device_address);
+            holder.deviceName = view.findViewById(R.id.device_name);
+            view.setTag(holder);
+
+            return holder;
+        }
+
+        @SuppressLint("MissingPermission")
         public void addDevice(BluetoothDevice device) {
-            if (!mLeDevices.contains(device)) {
+            if (!mLeDevices.contains(device) && device.getName() != null) {
                 mLeDevices.add(device);
             }
         }
@@ -243,13 +226,19 @@ public class MainActivity extends ListActivity {
         }
 
         @Override
-        public int getCount() {
-            return mLeDevices.size();
-        }
+        public void onBindViewHolder(@NonNull DeviceListAdapter.DeviceViewHolder holder, int position) {
+            BluetoothDevice device = mLeDevices.get(position); //TODO check this int
 
-        @Override
-        public Object getItem(int i) {
-            return mLeDevices.get(i);
+            @SuppressLint("MissingPermission")
+            final String deviceName = device.getName();
+
+            if (deviceName != null && deviceName.length() > 0)
+                holder.deviceName.setText(deviceName);
+            else
+                holder.deviceName.setText(R.string.unknown_device);
+            holder.deviceAddress.setText(device.getAddress());
+
+            holder.setListener();
         }
 
         @Override
@@ -258,37 +247,39 @@ public class MainActivity extends ListActivity {
         }
 
         @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
+        public int getItemCount() {
+            return mLeDevices.size();
+        }
 
-            ViewHolder viewHolder;
-            // General ListView optimization code.
-            if (convertView == null) {
-                convertView = mInflator.inflate(R.layout.listitem_device, null);
-                viewHolder = new ViewHolder();
-                viewHolder.deviceAddress = (TextView) convertView.findViewById(R.id.device_address);
-                viewHolder.deviceName = (TextView) convertView.findViewById(R.id.device_name);
-                convertView.setTag(viewHolder);
-            } else {
-                viewHolder = (ViewHolder) convertView.getTag();
+        class DeviceViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+            TextView deviceName;
+            TextView deviceAddress;
+            LinearLayout layout;
+
+            public DeviceViewHolder(@NonNull View itemView) {
+                super(itemView);
+                layout = itemView.findViewById(R.id.device_list_item);
             }
 
-            BluetoothDevice device = mLeDevices.get(position);
-
+            public void setListener() {
+                layout.setOnClickListener(DeviceViewHolder.this);
+            }
             @SuppressLint("MissingPermission")
-            final String deviceName = device.getName();
-            Log.i(TAG, "Device at position " + position + " has the name " + deviceName);
-            if (deviceName != null && deviceName.length() > 0)
-                viewHolder.deviceName.setText(deviceName);
-            else
-                viewHolder.deviceName.setText(R.string.unknown_device);
-            viewHolder.deviceAddress.setText(device.getAddress());
-
-            return convertView;
+            @Override
+            public void onClick(View v) {
+                final BluetoothDevice device = getDevice(getAdapterPosition());
+                if (device == null) {
+                    return;
+                }
+                final Intent intent = new Intent(getApplicationContext(), DeviceControlActivity.class);
+                intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
+                intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+                if (scanning) {
+                    bluetoothLeScanner.stopScan(leScanCallback);
+                    scanning = false;
+                }
+                startActivity(intent);
+            }
         }
-    }
-
-    static class ViewHolder {
-        TextView deviceName;
-        TextView deviceAddress;
     }
 }

@@ -4,7 +4,7 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/layout/actionbar_indeterminate_progress.xml" value="0.25546875" />
-        <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/layout/activity_main.xml" value="0.340625" />
+        <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/layout/activity_main.xml" value="0.1" />
         <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/layout/gatt_services_characteristics.xml" value="0.3416666666666667" />
         <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/layout/listitem_device.xml" value="0.340625" />
         <entry key="..\:/Users/clare/AndroidStudioProjects/BluetoothLEHeartRate/app/src/main/res/menu/gatt_services.xml" value="0.340625" />
