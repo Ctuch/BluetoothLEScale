@@ -16,7 +16,6 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.TextView;
 
-import java.util.List;
 import java.util.UUID;
 
 public class DeviceControlActivity extends Activity {
@@ -29,6 +28,8 @@ public class DeviceControlActivity extends Activity {
     private TextView mDataField;
     private String mDeviceAddress;
     private BluetoothLeService mBluetoothLeService;
+    private BluetoothGattCharacteristic weightCharacteristic;
+    private BluetoothGattCharacteristic commandCharacteristic;
     private boolean mConnected = false;
 
     // Code to manage Service lifecycle.
@@ -71,31 +72,40 @@ public class DeviceControlActivity extends Activity {
                 invalidateOptionsMenu();
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                // Get the heart rate characteristic and set up data collection
-                BluetoothGattCharacteristic heartRate = getHeartRateCharacteristic(mBluetoothLeService.getSupportedGattServices());
-                enableHeartRateCollection(heartRate);
+
+                assignCharacteristics(mBluetoothLeService.getGattService(UUID.fromString(GattAttributeUUIDs.WEIGHT_SERVICE)));
+                writeEnableCommand();
+
+                enableWeightCollection();
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
             }
         }
     };
 
-    private void enableHeartRateCollection(BluetoothGattCharacteristic heartRateCharacteristic) {
+    private void writeEnableCommand() {
+        // magic number <- https://github.com/oliexdev/openScale/wiki/Medisana-BS444
+        byte[] enableBytes = new byte[] {(byte)0x02, (byte)0x7b, (byte)0x7b, (byte)0xf6, (byte)0x0d};
+        mBluetoothLeService.writeCharacteristic(commandCharacteristic, enableBytes);
+    }
+
+    private void enableWeightCollection() {
+        mBluetoothLeService.readCharacteristic(weightCharacteristic);
         final Handler handler = new Handler(Looper.getMainLooper());
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if (heartRateCharacteristic != null) {
-                    mBluetoothLeService.setCharacteristicNotification(heartRateCharacteristic, true);
+                if (weightCharacteristic != null) {
+                    mBluetoothLeService.setCharacteristicNotification(weightCharacteristic, true);
                 } else {
-                    Log.e(TAG, "No heart rate characteristic");
+                    Log.e(TAG, "No weight characteristic");
                 }
             }
         }, 4000);
     }
 
     private void clearUI() {
-        mDataField.setText(R.string.no_data);
+        //mDataField.setText(R.string.no_data);
     }
 
     @Override
@@ -151,20 +161,16 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
-    private BluetoothGattCharacteristic getHeartRateCharacteristic(List<BluetoothGattService> gattServices) {
-        if (gattServices == null) return null;
-        UUID serviceUuid = UUID.fromString(GattHeartRateAttributes.HEART_RATE_SERVICE);
-        UUID characteristicUUID = UUID.fromString(GattHeartRateAttributes.HEART_RATE_MEASUREMENT);
+    private void assignCharacteristics(BluetoothGattService gattService) {
+        if (gattService == null) return;
+        UUID cmdCharacteristicUUID = UUID.fromString(GattAttributeUUIDs.CMD_MEASUREMENT_CHARACTERISTIC);
+        UUID weightCharacteristicUUID = UUID.fromString(GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
 
-        for (BluetoothGattService gattService : gattServices) {
-            BluetoothGattCharacteristic heartRate = gattService.getCharacteristic(characteristicUUID);
-            if (heartRate != null && gattService.getUuid().equals(serviceUuid))
-            {
-                return heartRate;
-            }
+        commandCharacteristic = gattService.getCharacteristic(cmdCharacteristicUUID);
+        weightCharacteristic = gattService.getCharacteristic(weightCharacteristicUUID);
+        if (commandCharacteristic == null || weightCharacteristic == null) {
+            Log.e(TAG, "Something is wrong with the characteristics");
         }
-
-        return null;
     }
 
     private static IntentFilter makeGattUpdateIntentFilter() {
