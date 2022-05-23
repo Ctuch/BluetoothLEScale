@@ -12,12 +12,8 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.widget.ExpandableListView;
-import android.widget.SimpleExpandableListAdapter;
 import android.widget.TextView;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,13 +27,8 @@ public class DeviceControlActivity extends Activity {
     private TextView mDataField;
     private String mDeviceName;
     private String mDeviceAddress;
-    private ExpandableListView mGattServicesList;
     private BluetoothLeService mBluetoothLeService;
-    private BluetoothGattCharacteristic heartRateCharacteristic;
-    private ArrayList<ArrayList<BluetoothGattCharacteristic>> mGattCharacteristics =
-            new ArrayList<>();
     private boolean mConnected = false;
-    private BluetoothGattCharacteristic mNotifyCharacteristic;
 
     private final String LIST_NAME = "NAME";
     private final String LIST_UUID = "UUID";
@@ -83,17 +74,21 @@ public class DeviceControlActivity extends Activity {
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 // Show all the supported services and characteristics on the user interface.
-                displayGattServices(mBluetoothLeService.getSupportedGattServices());
-                enableHeartRateCollection();
+                BluetoothGattCharacteristic heartRate = getHeartRateCharacteristic(mBluetoothLeService.getSupportedGattServices());
+                enableHeartRateCollection(heartRate);
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
             }
         }
     };
 
-    private void enableHeartRateCollection() {
+    private void enableHeartRateCollection(BluetoothGattCharacteristic heartRateCharacteristic) {
+        try {
+            Thread.sleep(4000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         if (heartRateCharacteristic != null) {
-            mBluetoothLeService.readCharacteristic(heartRateCharacteristic);
             mBluetoothLeService.setCharacteristicNotification(heartRateCharacteristic, true);
         } else {
             Log.e(TAG, "No heart rate characteristic");
@@ -159,58 +154,20 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
-
-    // Demonstrates how to iterate through the supported GATT Services/Characteristics.
-    // In this sample, we populate the data structure that is bound to the ExpandableListView
-    // on the UI.
-    private void displayGattServices(List<BluetoothGattService> gattServices) {
-        if (gattServices == null) return;
-        String uuid = null;
-        String unknownServiceString = getResources().getString(R.string.unknown_service);
-        String unknownCharaString = getResources().getString(R.string.unknown_characteristic);
-        ArrayList<HashMap<String, String>> gattServiceData = new ArrayList<>();
-        ArrayList<ArrayList<HashMap<String, String>>> gattCharacteristicData
-                = new ArrayList<>();
-        mGattCharacteristics = new ArrayList<>();
-
+    private BluetoothGattCharacteristic getHeartRateCharacteristic(List<BluetoothGattService> gattServices) {
+        if (gattServices == null) return null;
+        UUID serviceUuid = UUID.fromString(GattHeartRateAttributes.HEART_RATE_SERVICE);
+        UUID characteristicUUID = UUID.fromString(GattHeartRateAttributes.HEART_RATE_MEASUREMENT);
         // Loops through available GATT Services.
         for (BluetoothGattService gattService : gattServices) {
-
-            List<BluetoothGattCharacteristic> gattCharacteristics =
-                    gattService.getCharacteristics();
-            ArrayList<BluetoothGattCharacteristic> charas =
-                    new ArrayList<>();
-
-            // Loops through available Characteristics.
-            for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
-                charas.add(gattCharacteristic);
-                HashMap<String, String> currentCharaData = new HashMap<>();
-                uuid = gattCharacteristic.getUuid().toString();
-
-                if (gattCharacteristic.getUuid().equals(
-                        UUID.fromString(GattHeartRateAttributes.HEART_RATE_MEASUREMENT))) {
-                    heartRateCharacteristic = gattCharacteristic;
-                }
-
-                currentCharaData.put(
-                        LIST_NAME, GattHeartRateAttributes.lookup(uuid, unknownCharaString));
-                currentCharaData.put(LIST_UUID, uuid);
+            BluetoothGattCharacteristic heartRate = gattService.getCharacteristic(characteristicUUID);
+            if (heartRate != null && gattService.getUuid().equals(serviceUuid))
+            {
+                return heartRate;
             }
-            mGattCharacteristics.add(charas);
-
         }
 
-        SimpleExpandableListAdapter gattServiceAdapter = new SimpleExpandableListAdapter(
-                this,
-                gattServiceData,
-                android.R.layout.simple_expandable_list_item_2,
-                new String[] {LIST_NAME, LIST_UUID},
-                new int[] { android.R.id.text1, android.R.id.text2 },
-                gattCharacteristicData,
-                android.R.layout.simple_expandable_list_item_2,
-                new String[] {LIST_NAME, LIST_UUID},
-                new int[] { android.R.id.text1, android.R.id.text2 }
-        );
+        return null;
     }
 
     private static IntentFilter makeGattUpdateIntentFilter() {
