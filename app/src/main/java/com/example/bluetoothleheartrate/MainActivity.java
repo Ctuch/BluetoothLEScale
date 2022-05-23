@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_CODE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_CODE_BLUETOOTH = 2;
     private static final int REQUEST_ENABLE_BT = 3;
-    private static final String TAG = "Main_Activity";
+
     private static final long SCAN_PERIOD = 30000; // 30 seconds
 
     private BluetoothAdapter bluetoothAdapter;
@@ -84,14 +84,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
-        // fire an intent to display a dialog asking the user to grant permission to enable it.
+        // Ensures Bluetooth is enabled on the device.
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        //TODO: is this right?
         scanLeDevice();
     }
 
@@ -156,7 +154,6 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("MissingPermission")
     private void scanLeDevice() {
         if (!scanning) {
-
             //stop scanning after SCAN_PERIOD time
             handler.postDelayed(new Runnable() {
 
@@ -168,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
             }, SCAN_PERIOD);
 
             scanning = true;
-            bluetoothLeScanner.startScan(leScanCallback); //can filter this by device -> TODO: get only heart rate
+            bluetoothLeScanner.startScan(leScanCallback);
         } else {
             scanning = false;
             bluetoothLeScanner.stopScan(leScanCallback);
@@ -227,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull DeviceListAdapter.DeviceViewHolder holder, int position) {
-            BluetoothDevice device = mLeDevices.get(position); //TODO check this int
+            BluetoothDevice device = mLeDevices.get(position);
 
             @SuppressLint("MissingPermission")
             final String deviceName = device.getName();

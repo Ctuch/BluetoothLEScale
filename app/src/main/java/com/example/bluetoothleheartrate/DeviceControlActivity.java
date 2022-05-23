@@ -10,7 +10,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -25,13 +27,9 @@ public class DeviceControlActivity extends Activity {
 
     private TextView mConnectionState;
     private TextView mDataField;
-    private String mDeviceName;
     private String mDeviceAddress;
     private BluetoothLeService mBluetoothLeService;
     private boolean mConnected = false;
-
-    private final String LIST_NAME = "NAME";
-    private final String LIST_UUID = "UUID";
 
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -73,7 +71,7 @@ public class DeviceControlActivity extends Activity {
                 invalidateOptionsMenu();
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                // Show all the supported services and characteristics on the user interface.
+                // Get the heart rate characteristic and set up data collection
                 BluetoothGattCharacteristic heartRate = getHeartRateCharacteristic(mBluetoothLeService.getSupportedGattServices());
                 enableHeartRateCollection(heartRate);
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
@@ -83,16 +81,17 @@ public class DeviceControlActivity extends Activity {
     };
 
     private void enableHeartRateCollection(BluetoothGattCharacteristic heartRateCharacteristic) {
-        try {
-            Thread.sleep(4000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        if (heartRateCharacteristic != null) {
-            mBluetoothLeService.setCharacteristicNotification(heartRateCharacteristic, true);
-        } else {
-            Log.e(TAG, "No heart rate characteristic");
-        }
+        final Handler handler = new Handler(Looper.getMainLooper());
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (heartRateCharacteristic != null) {
+                    mBluetoothLeService.setCharacteristicNotification(heartRateCharacteristic, true);
+                } else {
+                    Log.e(TAG, "No heart rate characteristic");
+                }
+            }
+        }, 4000);
     }
 
     private void clearUI() {
@@ -105,10 +104,8 @@ public class DeviceControlActivity extends Activity {
         setContentView(R.layout.bpm_display);
 
         final Intent intent = getIntent();
-        mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
         mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
 
-        // Sets up UI references.
         mConnectionState = (TextView) findViewById(R.id.connection_state);
         mDataField = (TextView) findViewById(R.id.data_value);
 
@@ -158,7 +155,7 @@ public class DeviceControlActivity extends Activity {
         if (gattServices == null) return null;
         UUID serviceUuid = UUID.fromString(GattHeartRateAttributes.HEART_RATE_SERVICE);
         UUID characteristicUUID = UUID.fromString(GattHeartRateAttributes.HEART_RATE_MEASUREMENT);
-        // Loops through available GATT Services.
+
         for (BluetoothGattService gattService : gattServices) {
             BluetoothGattCharacteristic heartRate = gattService.getCharacteristic(characteristicUUID);
             if (heartRate != null && gattService.getUuid().equals(serviceUuid))
