@@ -16,6 +16,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.TextView;
 
+import java.util.Date;
 import java.util.UUID;
 
 public class DeviceControlActivity extends Activity {
@@ -24,12 +25,13 @@ public class DeviceControlActivity extends Activity {
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
 
+    // Scale time is in seconds since 2010-01-01
+    private static final long SCALE_UNIX_TIMESTAMP_OFFSET = 1262304000;
+
     private TextView mConnectionState;
     private TextView mDataField;
     private String mDeviceAddress;
     private BluetoothLeService mBluetoothLeService;
-    private BluetoothGattCharacteristic weightCharacteristic;
-    private BluetoothGattCharacteristic commandCharacteristic;
     private boolean mConnected = false;
 
     // Code to manage Service lifecycle.
@@ -72,11 +74,10 @@ public class DeviceControlActivity extends Activity {
                 invalidateOptionsMenu();
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-
-                assignCharacteristics(mBluetoothLeService.getGattService(UUID.fromString(GattAttributeUUIDs.WEIGHT_SERVICE)));
-                writeEnableCommand();
-
                 enableWeightCollection();
+
+            } else if (BluetoothLeService.WRITE_COMPLETE.equals(action)) {
+                writeEnableCommand();
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
             }
@@ -84,24 +85,21 @@ public class DeviceControlActivity extends Activity {
     };
 
     private void writeEnableCommand() {
+        BluetoothGattCharacteristic commandCharacteristic = getCharacteristic(GattAttributeUUIDs.WEIGHT_SERVICE, GattAttributeUUIDs.CMD_MEASUREMENT_CHARACTERISTIC);
+
         // magic number <- https://github.com/oliexdev/openScale/wiki/Medisana-BS444
-        byte[] enableBytes = new byte[] {(byte)0x02, (byte)0x7b, (byte)0x7b, (byte)0xf6, (byte)0x0d};
-        mBluetoothLeService.writeCharacteristic(commandCharacteristic, enableBytes);
+        // send magic number to receive weight data
+        long timestamp = new Date().getTime() / 1000;
+        timestamp -= SCALE_UNIX_TIMESTAMP_OFFSET;
+        byte[] date = Converters.toInt32Le(timestamp);
+
+        byte[] magicBytes = new byte[] {(byte)0x02, date[0], date[1], date[2], date[3]};
+        mBluetoothLeService.writeCharacteristic(commandCharacteristic, magicBytes);
     }
 
     private void enableWeightCollection() {
-        mBluetoothLeService.readCharacteristic(weightCharacteristic);
-        final Handler handler = new Handler(Looper.getMainLooper());
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (weightCharacteristic != null) {
-                    mBluetoothLeService.setCharacteristicNotification(weightCharacteristic, true);
-                } else {
-                    Log.e(TAG, "No weight characteristic");
-                }
-            }
-        }, 4000);
+        BluetoothGattCharacteristic weightCharacteristic = getCharacteristic(GattAttributeUUIDs.WEIGHT_SERVICE, GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
+        mBluetoothLeService.setCharacteristicNotification(weightCharacteristic, true);
     }
 
     private void clearUI() {
@@ -161,16 +159,15 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
-    private void assignCharacteristics(BluetoothGattService gattService) {
-        if (gattService == null) return;
-        UUID cmdCharacteristicUUID = UUID.fromString(GattAttributeUUIDs.CMD_MEASUREMENT_CHARACTERISTIC);
-        UUID weightCharacteristicUUID = UUID.fromString(GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
+    private BluetoothGattCharacteristic getCharacteristic(UUID service, UUID characteristic) {
+        BluetoothGattService gattService = mBluetoothLeService.getGattService(service);
+        if (gattService == null) return null;
 
-        commandCharacteristic = gattService.getCharacteristic(cmdCharacteristicUUID);
-        weightCharacteristic = gattService.getCharacteristic(weightCharacteristicUUID);
-        if (commandCharacteristic == null || weightCharacteristic == null) {
+        BluetoothGattCharacteristic bluetoothCharacteristic = gattService.getCharacteristic(characteristic);
+        if (bluetoothCharacteristic == null) {
             Log.e(TAG, "Something is wrong with the characteristics");
         }
+        return bluetoothCharacteristic;
     }
 
     private static IntentFilter makeGattUpdateIntentFilter() {
@@ -178,6 +175,7 @@ public class DeviceControlActivity extends Activity {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BluetoothLeService.WRITE_COMPLETE);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         return intentFilter;
     }
