@@ -38,7 +38,6 @@ public class BluetoothLeService extends Service {
     private BluetoothCentralManager mCentralManager;
     private BluetoothPeripheral mBtPeripheral;
     private Handler callbackBtHandler;
-    private Context mContext;
     private String mBluetoothDeviceAddress;
 
 
@@ -62,11 +61,6 @@ public class BluetoothLeService extends Service {
             "com.example.bluetooth.le.ACTION_NOTIFICATION_SET";
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
-
-    public BluetoothLeService(Context context) {
-        this.mContext = context;
-        this.mCentralManager = new BluetoothCentralManager(context, mBluetoothCentralCallback, new Handler(Looper.getMainLooper()));
-    }
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -113,8 +107,8 @@ public class BluetoothLeService extends Service {
             broadcastUpdate(intentAction);
             Log.i(TAG, "Connected to GATT server.");
             // Attempts to discover services after successful connection.
-            Log.i(TAG, "Attempting to start service discovery:" +
-                    mCentralManager.discoverServices());
+            //Log.i(TAG, "Attempting to start service discovery:" +
+            //        mCentralManager);
             mBtPeripheral = peripheral;
         }
 
@@ -198,7 +192,7 @@ public class BluetoothLeService extends Service {
 
     public boolean initialize() {
         if (mCentralManager == null) {
-            mCentralManager = new BluetoothCentralManager(mContext, mBluetoothCentralCallback, new Handler(Looper.getMainLooper()));
+            mCentralManager = new BluetoothCentralManager(getApplicationContext(), mBluetoothCentralCallback, new Handler(Looper.getMainLooper()));
         }
         return true;
     }

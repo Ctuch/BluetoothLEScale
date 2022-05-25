@@ -55,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
 
     private BluetoothCentralManager mCentralManager;
     private BluetoothAdapter bluetoothAdapter;
-    private BluetoothLeScanner bluetoothLeScanner;
     private DeviceListAdapter leDeviceListAdapter;
     private Handler handler;
     private boolean scanning;
@@ -76,8 +75,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         mCentralManager = new BluetoothCentralManager(this, mBluetoothCentralCallback, new Handler(Looper.getMainLooper()));
+        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         bluetoothAdapter = bluetoothManager.getAdapter();
-        bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
         handler = new Handler(getMainLooper());
 
         checkPermissionLocation();
@@ -112,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
             }, SCAN_PERIOD);
 
             scanning = true;
-            mCentralManager.scanForPeripheralsWithServices(new UUID[] {GattAttributeUUIDs.WEIGHT_SERVICE});
+            mCentralManager.scanForPeripheralsWithServices(new UUID[]{GattAttributeUUIDs.WEIGHT_SERVICE});
         } else {
             scanning = false;
             stopBluetoothDiscovery();
@@ -184,7 +183,7 @@ public class MainActivity extends AppCompatActivity {
     private final BluetoothCentralManagerCallback mBluetoothCentralCallback = new BluetoothCentralManagerCallback() {
         @Override
         public void onDiscoveredPeripheral(BluetoothPeripheral peripheral, ScanResult scanResult) {
-            new Handler().post(new Runnable() {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
                 public void run() {
                     onDeviceFound(scanResult);
@@ -195,17 +194,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void onDeviceFound(final ScanResult bleScanResult) {
         BluetoothDevice device = bleScanResult.getDevice();
-    }
+        int size = leDeviceListAdapter.getItemCount();
+        leDeviceListAdapter.addDevice(device);
+        if (leDeviceListAdapter.getItemCount() > size) {
+            leDeviceListAdapter.notifyDataSetChanged();
+        }
 
-    private ScanCallback leScanCallback =
-            new ScanCallback() {
-                @Override
-                public void onScanResult(int callbackType, ScanResult result) {
-                    super.onScanResult(callbackType, result);
-                    leDeviceListAdapter.addDevice(result.getDevice());
-                    leDeviceListAdapter.notifyDataSetChanged();
-                }
-            };
+    }
 
     private class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.DeviceViewHolder> {
 
@@ -297,7 +292,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
                 intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
                 if (scanning) {
-                    bluetoothLeScanner.stopScan(leScanCallback);
+                    stopBluetoothDiscovery();
                     scanning = false;
                 }
                 startActivity(intent);
