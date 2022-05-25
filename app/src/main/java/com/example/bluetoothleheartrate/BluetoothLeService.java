@@ -25,6 +25,7 @@ import com.welie.blessed.GattStatus;
 import com.welie.blessed.HciStatus;
 import com.welie.blessed.WriteType;
 
+import java.text.DecimalFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -143,11 +144,11 @@ public class BluetoothLeService extends Service {
         final Intent intent = new Intent(action);
 
         Log.d(TAG, "broadcasting an update with action: " + action);
-        //TODO: format weight characteristic data
         if (GattAttributeUUIDs.WEIGHT_CHARACTERISTIC.equals(characteristic.getUuid())) {
             double weight = parseWeightData(value);
-            Log.d(TAG, String.format("Received weight: " + weight));
-            intent.putExtra(EXTRA_DATA, String.valueOf(weight));
+            DecimalFormat decimalFormat = new DecimalFormat("###.#");
+            Log.d(TAG, "Received weight: " + decimalFormat.format(weight));
+            intent.putExtra(EXTRA_DATA, decimalFormat.format(weight));
             sendBroadcast(intent);
         } else {
             // For all other profiles, writes the data formatted in HEX.

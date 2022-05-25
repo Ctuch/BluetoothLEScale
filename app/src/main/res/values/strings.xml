@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name">BluetoothLEHeartRate</string>
+    <string name="app_name">Bluetooth LE Scale</string>
     <string name="ble_not_supported">BLE is not supported</string>
-    <string name="label_data">BPM</string>
+    <string name="label_data">Weight</string>
     <string name="label_state">State:</string>
-    <string name="no_data">No data</string>
+    <string name="no_data">00.0</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="title_devices">BLE Device Scan</string>
@@ -18,4 +18,5 @@
     <string name="menu_disconnect">Disconnect</string>
     <string name="menu_scan">Scan</string>
     <string name="menu_stop">Stop</string>
+    <string name="weight_unit">kg</string>
 </resources>

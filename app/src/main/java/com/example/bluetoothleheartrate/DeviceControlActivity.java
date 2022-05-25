@@ -10,9 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.util.Log;
 import android.widget.TextView;
 
@@ -129,7 +127,7 @@ public class DeviceControlActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.bpm_display);
+        setContentView(R.layout.weight_display2);
 
         final Intent intent = getIntent();
         mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
