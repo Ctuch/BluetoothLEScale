@@ -8,6 +8,8 @@ public class GattAttributeUUIDs {
     public static UUID WEIGHT_SERVICE = UUID.fromString("000078b2-0000-1000-8000-00805f9b34fb");
     public static UUID CMD_MEASUREMENT_CHARACTERISTIC =  UUID.fromString("00008a81-0000-1000-8000-00805f9b34fb");
     public static UUID CLIENT_CHARACTERISTIC_CONFIG = fromShortCode(0x2902);
+    public static UUID FEATURE_MEASUREMENT_CHARACTERISTIC = fromShortCode(0x8a22); // indication, read-only
+    public static UUID CUSTOM5_MEASUREMENT_CHARACTERISTIC = fromShortCode(0x8a82); // indication, read-only
     // public static UUID DEVICE_SERVICE = fromShortCode(0x180a);
     // public static UUID MANUFACTURE_NAME_CHARACTERISTIC = fromShortCode(0x2a29);
 

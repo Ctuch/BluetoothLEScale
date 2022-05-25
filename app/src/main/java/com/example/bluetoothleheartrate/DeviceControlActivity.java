@@ -33,6 +33,7 @@ public class DeviceControlActivity extends Activity {
     private String mDeviceAddress;
     private BluetoothLeService mBluetoothLeService;
     private boolean mConnected = false;
+    private int count = 0;
 
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -76,12 +77,22 @@ public class DeviceControlActivity extends Activity {
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 enableWeightCollection();
             } else if (BluetoothLeService.ACTION_NOTIFICATION_SET.equals(action)) {
-                writeEnableCommand();
+                if (count < 3) {
+                    enableWeightCollection();
+                } else {
+                    writeEnableCommand();
+                }
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+            } else if (BluetoothLeService.WRITE_COMPLETE.equals(action)) {
+                //readWeight();
             }
         }
     };
+
+    private void readWeight() {
+        mBluetoothLeService.readCharacteristic(getCharacteristic(GattAttributeUUIDs.WEIGHT_SERVICE, GattAttributeUUIDs.WEIGHT_CHARACTERISTIC));
+    }
 
     private void writeEnableCommand() {
         BluetoothGattCharacteristic commandCharacteristic = getCharacteristic(GattAttributeUUIDs.WEIGHT_SERVICE, GattAttributeUUIDs.CMD_MEASUREMENT_CHARACTERISTIC);
@@ -97,7 +108,18 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void enableWeightCollection() {
-        mBluetoothLeService.setIndicationOn(GattAttributeUUIDs.WEIGHT_SERVICE,  GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
+        UUID characteristic;
+        if (count == 0) {
+            characteristic = GattAttributeUUIDs.FEATURE_MEASUREMENT_CHARACTERISTIC;
+        } else if (count == 1) {
+            characteristic = GattAttributeUUIDs.WEIGHT_CHARACTERISTIC;
+        } else if (count == 2) {
+            characteristic = GattAttributeUUIDs.CUSTOM5_MEASUREMENT_CHARACTERISTIC;
+        } else {
+            return;
+        }
+        mBluetoothLeService.setIndicationOn(GattAttributeUUIDs.WEIGHT_SERVICE,  characteristic);
+        count++;
     }
 
     private void clearUI() {

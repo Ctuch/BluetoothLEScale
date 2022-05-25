@@ -13,4 +13,14 @@ public class Converters {
         data[offset + 1] = (byte) ((value >> 8) & 0xFF);
         data[offset + 0] = (byte) (value & 0xFF);
     }
+
+    public static int fromUnsignedInt16Le(byte[] data, int offset) {
+        return fromSignedInt16Le(data, offset) & 0xFFFF;
+    }
+
+    public static int fromSignedInt16Le(byte[] data, int offset) {
+        int value = data[offset + 1] << 8;
+        value += data[offset] & 0xFF;
+        return value;
+    }
 }

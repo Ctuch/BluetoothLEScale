@@ -25,6 +25,7 @@ import com.welie.blessed.GattStatus;
 import com.welie.blessed.HciStatus;
 import com.welie.blessed.WriteType;
 
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -86,6 +87,7 @@ public class BluetoothLeService extends Service {
         @Override
         public void onCharacteristicWrite(BluetoothPeripheral peripheral, byte[] value, BluetoothGattCharacteristic characteristic, GattStatus status) {
             Log.i(TAG, "Characteristic has been written, status: " + (status.value == GATT_SUCCESS ? "success" : "failure"));
+            broadcastUpdate(WRITE_COMPLETE);
         }
 
         @Override
@@ -143,18 +145,10 @@ public class BluetoothLeService extends Service {
         Log.d(TAG, "broadcasting an update with action: " + action);
         //TODO: format weight characteristic data
         if (GattAttributeUUIDs.WEIGHT_CHARACTERISTIC.equals(characteristic.getUuid())) {
-            int flag = characteristic.getProperties();
-            int format = -1;
-            if ((flag & 0x01) != 0) {
-                format = BluetoothGattCharacteristic.FORMAT_UINT16;
-                Log.d(TAG, "Heart rate format UINT16.");
-            } else {
-                format = BluetoothGattCharacteristic.FORMAT_UINT8;
-                Log.d(TAG, "Heart rate format UINT8.");
-            }
-            final int heartRate = characteristic.getIntValue(format, 1);
-            Log.d(TAG, String.format("Received heart rate: %d", heartRate));
-            intent.putExtra(EXTRA_DATA, String.valueOf(heartRate));
+            double weight = parseWeightData(value);
+            Log.d(TAG, String.format("Received weight: " + weight));
+            intent.putExtra(EXTRA_DATA, String.valueOf(weight));
+            sendBroadcast(intent);
         } else {
             // For all other profiles, writes the data formatted in HEX.
             final byte[] data = characteristic.getValue();
@@ -163,12 +157,16 @@ public class BluetoothLeService extends Service {
                 for(byte byteChar : data)
                     stringBuilder.append(String.format("%02X ", byteChar));
                 Log.d(TAG, String.format("Received value: %s", stringBuilder));
-                intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+                //intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
             }
         }
 
-        sendBroadcast(intent);
 
+
+    }
+
+    private double parseWeightData(byte[] weightData) {
+        return Converters.fromUnsignedInt16Le(weightData, 1) / 100.0f;
     }
 
     public class LocalBinder extends Binder {
@@ -205,6 +203,7 @@ public class BluetoothLeService extends Service {
             public void run() {
                 Log.d(TAG, "Try to connect to BLE device " + peripheral.getAddress());
 
+                mCentralManager.scanForPeripheralsWithAddresses(new String[]{address});
                 mCentralManager.connectPeripheral(peripheral, mPeripheralCallback);
                 mBluetoothDeviceAddress = address;
                 mConnectionState = STATE_CONNECTING;
@@ -232,6 +231,8 @@ public class BluetoothLeService extends Service {
      */
     @SuppressLint("MissingPermission")
     public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
+        Log.i(TAG, "reading characteristic");
+        Log.i(TAG, "properties of characteristic: " + characteristic.getProperties());
         boolean success = mBtPeripheral.readCharacteristic(characteristic);
         if (!success) {
             Log.e(TAG, "read was not successful");
