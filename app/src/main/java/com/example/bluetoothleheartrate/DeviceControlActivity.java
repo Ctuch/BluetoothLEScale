@@ -75,8 +75,7 @@ public class DeviceControlActivity extends Activity {
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 enableWeightCollection();
-
-            } else if (BluetoothLeService.WRITE_COMPLETE.equals(action)) {
+            } else if (BluetoothLeService.ACTION_NOTIFICATION_SET.equals(action)) {
                 writeEnableCommand();
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
@@ -98,8 +97,7 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void enableWeightCollection() {
-        BluetoothGattCharacteristic weightCharacteristic = getCharacteristic(GattAttributeUUIDs.WEIGHT_SERVICE, GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
-        mBluetoothLeService.setCharacteristicNotification(weightCharacteristic, true);
+        mBluetoothLeService.setIndicationOn(GattAttributeUUIDs.WEIGHT_SERVICE,  GattAttributeUUIDs.WEIGHT_CHARACTERISTIC);
     }
 
     private void clearUI() {
@@ -175,6 +173,7 @@ public class DeviceControlActivity extends Activity {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BluetoothLeService.ACTION_NOTIFICATION_SET);
         intentFilter.addAction(BluetoothLeService.WRITE_COMPLETE);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         return intentFilter;

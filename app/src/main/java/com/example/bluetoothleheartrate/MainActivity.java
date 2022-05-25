@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,8 +37,12 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import com.google.android.material.transition.platform.MaterialContainerTransformSharedElementCallback;
+import com.welie.blessed.BluetoothCentralManager;
+import com.welie.blessed.BluetoothCentralManagerCallback;
+import com.welie.blessed.BluetoothPeripheral;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 //TODO: fix depreciated parts of UI with fragments and new design
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final long SCAN_PERIOD = 30000; // 30 seconds
 
+    private BluetoothCentralManager mCentralManager;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bluetoothLeScanner;
     private DeviceListAdapter leDeviceListAdapter;
@@ -69,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(layoutManager);
 
 
-        final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        mCentralManager = new BluetoothCentralManager(this, mBluetoothCentralCallback, new Handler(Looper.getMainLooper()));
         bluetoothAdapter = bluetoothManager.getAdapter();
         bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
         handler = new Handler(getMainLooper());
@@ -90,7 +96,31 @@ public class MainActivity extends AppCompatActivity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        scanLeDevice();
+        startBluetoothDiscovery();
+    }
+
+    private void startBluetoothDiscovery() {
+        if (!scanning) {
+            //stop scanning after SCAN_PERIOD time
+            handler.postDelayed(new Runnable() {
+
+                @Override
+                public void run() {
+                    scanning = false;
+                    stopBluetoothDiscovery();
+                }
+            }, SCAN_PERIOD);
+
+            scanning = true;
+            mCentralManager.scanForPeripheralsWithServices(new UUID[] {GattAttributeUUIDs.WEIGHT_SERVICE});
+        } else {
+            scanning = false;
+            stopBluetoothDiscovery();
+        }
+    }
+
+    private void stopBluetoothDiscovery() {
+        mCentralManager.stopScan();
     }
 
     @Override
@@ -106,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        scanLeDevice();
+        stopBluetoothDiscovery();
         leDeviceListAdapter.clear();
     }
 
@@ -151,25 +181,20 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private void scanLeDevice() {
-        if (!scanning) {
-            //stop scanning after SCAN_PERIOD time
-            handler.postDelayed(new Runnable() {
-
+    private final BluetoothCentralManagerCallback mBluetoothCentralCallback = new BluetoothCentralManagerCallback() {
+        @Override
+        public void onDiscoveredPeripheral(BluetoothPeripheral peripheral, ScanResult scanResult) {
+            new Handler().post(new Runnable() {
                 @Override
                 public void run() {
-                    scanning = false;
-                    bluetoothLeScanner.stopScan(leScanCallback);
+                    onDeviceFound(scanResult);
                 }
-            }, SCAN_PERIOD);
-
-            scanning = true;
-            bluetoothLeScanner.startScan(leScanCallback);
-        } else {
-            scanning = false;
-            bluetoothLeScanner.stopScan(leScanCallback);
+            });
         }
+    };
+
+    private void onDeviceFound(final ScanResult bleScanResult) {
+        BluetoothDevice device = bleScanResult.getDevice();
     }
 
     private ScanCallback leScanCallback =
